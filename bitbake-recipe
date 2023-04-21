@@ -22,7 +22,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Remove any wildcard
-    recipe = args.recipe.replace('*', '')
+    recipe = args.package.replace('*', '')
 
     with bb.tinfoil.Tinfoil(tracking=True) as tinfoil:
 
