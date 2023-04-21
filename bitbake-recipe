@@ -1,0 +1,60 @@
+#! /usr/bin/env python3
+#
+# Copyright (C) 2023 Talel BELHADJSALEM
+
+import itertools
+import argparse
+import os
+import sys
+
+bindir = os.path.dirname(__file__)
+topdir = os.path.dirname(bindir)
+sys.path[0:0] = [os.path.join(topdir, 'lib')]
+
+import bb.tinfoil
+
+def pprint(data):
+    print('| {:<30} | {:<6} | {:<2} | {:<7} | {:>4} |'.format(*data))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Bitbake Provider Finder")
+    parser.add_argument("-r", "--recipe", help="Recipe name to query", required=True)
+    args = parser.parse_args()
+
+    # Remove any wildcard
+    recipe = args.recipe.replace('*', '')
+
+    with bb.tinfoil.Tinfoil(tracking=True) as tinfoil:
+
+        # Prepare Bitbake Tinfoil
+        tinfoil.prepare(quiet=2)
+
+        recipes = []
+        all_providers = tinfoil.get_all_providers()
+
+        # Check if the given argument is a real package
+        recipes = [all_providers[pr]
+                   for pr in all_providers.keys()
+                   if pr.startswith(recipe)]
+
+        # Maybe a virtual package ?
+        if not recipes:
+            print(f"[bitbake-recipe] No real package providing {recipe} is found, checking for virtual packages..")
+            recipes = [all_providers[pr]
+                       for pr in all_providers.keys()
+                       if any(s.startswith(recipe)
+                              for s in tinfoil.get_recipe_info(pr).provides)]
+
+        if not recipes:
+            print(f"[bitbake-recipe] No real or virtual package that starts with : {recipe}")
+            exit(1)
+
+        pprint(["PN", "PV", "PR", "NATIVE?", "PATH"])
+        pprint(['-'*30, '-'*6, '-'*2, '-'*7, '-'*4])
+
+        for pr in list(itertools.chain.from_iterable(recipes)):
+            pprint([os.path.basename(pr[1]).replace('.bb', '').split('_')[0],
+                    pr[0][1],
+                    pr[0][2],
+                    'Yes' if "native" in pr[1] else 'No',
+                    pr[1].replace('virtual:native:', '')])
